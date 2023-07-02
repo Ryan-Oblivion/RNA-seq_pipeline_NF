@@ -1,0 +1,21 @@
+Bootstrap: docker
+From: bioconductor/bioconductor_docker:devel
+
+%environment
+LC_ALL="C"
+export LC_ALL
+
+%post
+
+# use this to fix the singularity error with -bind
+# echo $SINGULARITY_BINDPATH
+# echo $SINGULARITY_BIND
+# unset SINGULARITY_BINDPATH
+# which ever one is set unset it
+
+echo "BiocManager::install(c('DESeq2', 'Rsubread', 'EnhancedVolcano'))" | R
+
+
+%runscript
+
+exec R "$@"
