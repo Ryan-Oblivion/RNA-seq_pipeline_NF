@@ -203,29 +203,62 @@ ls *bam > bam_list.txt
 }
 
 
-/*process features {
+/*process r_featurecounts {
 
 
 input:
-val (bam_file), path(star_bam_files)
+val gtf
+path bams
 
 output:
 
+path "*_counts.txt", emit: feature_counts_files
 
 script:
 
 """
-#!/bin/R
+#!/bin/env Rscript
 
 library(featureCounts)
 
-featureCounts
+output_name = paste0("${bams}", "_counts.txt")
+
+fc = featureCounts( file = "${bams}",
+annot.ext = "${gtf}",
+isGTFAnnotationFile = TRUE,
+GTF.featureType = "exon",
+GTF.attrType = "gene_id",
+isPairedEnd = TRUE,
+countReadPairs = TRUE
+)
+
+
+
+write.table(fc\$counts, file = output_name, sep = "\t", quote = FALSE) 
 
 """
 
 
 
 }*/
+
+process r_featurecounts {
+
+input:
+
+
+output:
+
+script:
+
+"""
+cd ../../..
+#export PATH="/usr/local/bin/:$PATH"
+Rscript feature_count.R
+
+"""
+
+}
 
 
 /*
@@ -339,10 +372,19 @@ main:
 
 fastp(PE_reads)
 //bg_fastp(bg_reads)
+
 star(ref, gtf)
 star_align(filt_pe)
 
-star_align.out.star_bam_files.view()
+//star_align.out.star_bam_files.view()
+
+//r_featurecounts(gtf, star_align.out.star_bam_files)
+
+r_featurecounts()
+
+// looking to see the output in r_featurecounts
+
+//r_featurecounts.out.feature_counts_files.view()
 
 //bg_bwa(ref, bg_filt)
 //homer( bam_tuple)

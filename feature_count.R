@@ -48,7 +48,7 @@ for (x in c(1:total_files)) { file_name = files[x]
 var_name = paste0("x", gsub("-", "_", file_name)) 
 assign(var_name, read.csv(files[x], sep = "\t", header = FALSE, skip = 1))
 
-
+list_names = append(var_name, list_names)
 
 }
 
@@ -122,14 +122,12 @@ resLFC_0.05 = subset(resLFCordered, padj <= 0.05)
 
 write.table(as.data.frame(resLFC_0.05), file = "condition_kd_vs_ctr.csv")
 
-
-# hopefully installing this and choosing all is no problem
-BiocManager::install('EnhancedVolcano')
-a
 library(EnhancedVolcano)
 
+# trying pCutoff of 10e-3 instead of 10e-5
+
 v_plot = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
-=10e-5, FCcutoff = 0.5)
+=10e-3, FCcutoff = 0.5)
 png(file = 'v_plot.png', height = 500, width = 500)
 v_plot
 dev.off()

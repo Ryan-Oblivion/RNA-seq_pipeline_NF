@@ -13,8 +13,12 @@ export LC_ALL
 # unset SINGULARITY_BINDPATH
 # which ever one is set unset it
 
-echo "BiocManager::install(c('DESeq2', 'Rsubread', 'EnhancedVolcano'))" | R
+echo "BiocManager::install(c('DESeq2', 'Rsubread', 'EnhancedVolcano','apeglm'))" | R
+echo "install.packages('tidyverse')" | R
 
+# Install additional packages
+echo "install.packages(c('Matrix', 'pkgload', 'rstudioapi'))" | R
+echo "BiocManager::install('EnhancedVolcano', force = TRUE)" | R
 
 %runscript
 
