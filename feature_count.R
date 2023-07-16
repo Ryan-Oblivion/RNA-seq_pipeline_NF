@@ -2,7 +2,7 @@
 
 # featureCounts is part of the Rsubread suite of tools
 library(Rsubread)
-
+library(ggplot2)
 # now I want to loop through the bam files and use each bam in the feature counts tool
 # first i want to create a txt file of all bam names and then use readlines to look through
 # the names on each line in the bam txt file
@@ -151,6 +151,24 @@ png(file = 'gene_counts_qa.png', height = 500, width = 500)
 counts_select_gene = plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
 dev.off()
 
+
+# here is where I want to plot and show which points represent which replicate it originates from 
+
+gene_name = rownames(res[which.min(res$padj),])[1]
+gene_name
+
+data_counts = plotCounts(dds, gene=which.min(res$padj), intgroup="condition", returnData = TRUE)
+
+data_counts$replicates = rownames(data_counts)
+
+show_replicates = ggplot(data_counts, aes(x = condition, y = count, color = replicates)) + 
+geom_point()  +
+ggtitle(gene_name)
+
+png(file = 'counts_with_replicates.png', height = 500, width = 500)
+show_replicates
+dev.off()
+
 # now to show a pca of the different conditions to find any batch effects
 
 rld <- rlog(dds, blind=FALSE)
@@ -167,7 +185,7 @@ library(EnhancedVolcano)
 # also using y = pvalue because y = padj doesnt get any genes when a cutoff of 10e-5 is set. NOT ANYMORE
 
 v_plot_padj = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
-=10e-4, FCcutoff = 0.5)
+=10e-3, FCcutoff = 0.5)
 png(file = 'v_plot_padj.png', height = 500, width = 500)
 v_plot_padj
 dev.off()
@@ -175,7 +193,7 @@ dev.off()
 # lets make a v-plot with pvalue also
 
 v_plot_pvalue = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'pvalue', pCutoff
-=10e-4, FCcutoff = 0.5)
+=10e-3, FCcutoff = 0.5)
 
 png(file = 'v_plot_pvalue.png', height = 500, width = 500)
 v_plot_pvalue
