@@ -11,7 +11,11 @@ library(Rsubread)
 # featureCounts also takes an annotation file, so I will use the same gtf file from 
 # ther cut&run pipeline
 
-annotation_gtf_file = '../hg38.knownGene.gtf.gz'
+# this gtf file works only for gene_id
+#annotation_gtf_file = '../Homo_sapiens.GRCh38.109.chr.gtf.gz'
+
+# try this gtf file for the gene name
+annotation_gtf_file = '../gencode.v19.annotation.gtf.gz'
 
 bam_files = readLines(paste("./store_bam_files", "/bam_list.txt", sep = ""))
 
@@ -24,7 +28,7 @@ fc = featureCounts( files = file_name,
 annot.ext = annotation_gtf_file,
 isGTFAnnotationFile = TRUE,
 GTF.featureType = "exon",
-GTF.attrType = "gene_id",
+GTF.attrType = "gene_name",
 isPairedEnd = TRUE,
 countReadPairs = TRUE
 ) 
@@ -95,39 +99,117 @@ res = results(dds)
 # below I use lfcShrink for log fold change shrinkage for visulization and ranking
 # helps with ranking of genes
 # remember to site that we used apeglm as the shrinkage type. find in deseq2 package manuel
+
 resLFC = lfcShrink(dds, coef="condition_knockdown_vs_control", type= "apeglm")
 
 
+# now plot-ma of res then plot-ma of resLFC
+
+ma_plot_res = plotMA(res, ylim = c(-4,4))
+ma_plot_reslfc = plotMA(resLFC, ylim = c(-4,4))
+
+ma_plot_res
+ma_plot_reslfc
+
+# we are eliminating a lot of noise when shrinking the lfc of our dds data, 
+# as you can see in the second plot, while retaining the important genes
+# the genes removed are low count genes, and we do this without needing to use other filtering thresholds
+
 # now I want to order the results by pvalue. most significant to least significant
 
-resOrdered = res[order(res$pvalue),]
+#resOrdered = res[order(res$pvalue),]
 
 # do the same for the lfc also
-resLFCordered = resLFC[order(resLFC$pvalue),]
+#resLFCordered = resLFC[order(resLFC$pvalue),]
 
 # if i want the adjusted pvalue to be set to 0.05, then I need to change alpha from defualt at 0.1
 
-res05 = results(dds, alpha = 0.05)
+#res05 = results(dds, alpha = 0.05)
 
 
 # plotting plotma png 
-png(file = "ma_plot_lfc.png", height = 500, width = 500)
-ma_plot_lfc = plotMA(resLFC, ylim = c(-2,2))
+png(file = "ma_plot_reslfc.png", height = 500, width = 500)
+ma_plot_reslfc = plotMA(resLFC, ylim = c(-4,4))
 dev.off()
 
+# now plotting the res data without the lfc shrink
+png(file = "ma_plot_res.png", height = 500, width = 500)
+ma_plot_res = plotMA(res, ylim = c(-4,4))
+dev.off()
 
 # now we take a subset of the genes that pass this value, then save as a table
 
-resLFC_0.05 = subset(resLFCordered, padj <= 0.05)
+#resLFC_0.05 = subset(resLFCordered, padj <= 0.05)
 
-write.table(as.data.frame(resLFC_0.05), file = "condition_kd_vs_ctr.csv")
+#write.table(as.data.frame(resLFC_0.05), file = "condition_kd_vs_ctr.csv")
+
+
+
+# we can look at the individual gene counts across replicates and conditions
+
+png(file = 'gene_counts_qa.png', height = 500, width = 500)
+counts_select_gene = plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
+dev.off()
+
+# now to show a pca of the different conditions to find any batch effects
+
+rld <- rlog(dds, blind=FALSE)
+
+png( file = 'pca_analysis.png', height = 500, width = 500)
+pca_plot = plotPCA(rld, intgroup=c("condition"))
+dev.off()
+
+
 
 library(EnhancedVolcano)
 
 # trying pCutoff of 10e-3 instead of 10e-5
+# also using y = pvalue because y = padj doesnt get any genes when a cutoff of 10e-5 is set. NOT ANYMORE
 
-v_plot = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
-=10e-3, FCcutoff = 0.5)
-png(file = 'v_plot.png', height = 500, width = 500)
-v_plot
+v_plot_padj = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
+=10e-4, FCcutoff = 0.5)
+png(file = 'v_plot_padj.png', height = 500, width = 500)
+v_plot_padj
 dev.off()
+
+# lets make a v-plot with pvalue also
+
+v_plot_pvalue = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'pvalue', pCutoff
+=10e-4, FCcutoff = 0.5)
+
+png(file = 'v_plot_pvalue.png', height = 500, width = 500)
+v_plot_pvalue
+dev.off()
+
+# now we want to get all of the genes displayed in the Volcano plot into a chart
+
+# first I find which rows have a padj value of less than or equal to 10e-4 
+keep = which(resLFC$padj <= 10e-4)
+
+# then I only keep those rows
+res_padj_LFC = resLFC[keep,]
+#res_padj_LFC
+
+
+# now I want to find which rows of this new data set has a LFC of >= 0.5 or <= -0.5
+keep2 = which(res_padj_LFC$log2FoldChange >= 0.5 | res_padj_LFC$log2FoldChange <= -0.5 )
+
+res_padj_LFC_final = res_padj_LFC[keep2,]
+
+# This variable here contains the target genes displayed in the volcano plot with padj as its y-axis 
+res_padj_LFC_final
+
+# as you can see we have a total of 13 genes differentially expressed under the thresholds mentioned
+length(res_padj_LFC_final[,1])
+
+# now I will create a tsv file containing the selected genes
+
+names_col = c('gene', 'baseMean', 'log2FoldChange', 'IfcSE', 'pvalue', 'padj')
+
+df_target_genes = data.frame(res_padj_LFC_final)
+
+new_df = cbind( genes = rownames(df_target_genes), df_target_genes)
+rownames(new_df) = NULL
+new_df
+write.table( new_df, file = 'de_genes_lfc_shrunk_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
+
