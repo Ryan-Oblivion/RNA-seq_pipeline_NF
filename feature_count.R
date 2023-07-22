@@ -181,11 +181,11 @@ dev.off()
 
 library(EnhancedVolcano)
 
-# trying pCutoff of 10e-3 instead of 10e-5
+# trying pCutoff of 0.05 instead of 10e-5
 # also using y = pvalue because y = padj doesnt get any genes when a cutoff of 10e-5 is set. NOT ANYMORE
 
 v_plot_padj = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
-=10e-3, FCcutoff = 0.5)
+=0.05, FCcutoff = 0.5)
 png(file = 'v_plot_padj.png', height = 500, width = 500)
 v_plot_padj
 dev.off()
@@ -193,7 +193,7 @@ dev.off()
 # lets make a v-plot with pvalue also
 
 v_plot_pvalue = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'pvalue', pCutoff
-=10e-3, FCcutoff = 0.5)
+=0.05, FCcutoff = 0.5)
 
 png(file = 'v_plot_pvalue.png', height = 500, width = 500)
 v_plot_pvalue
@@ -202,7 +202,7 @@ dev.off()
 # now we want to get all of the genes displayed in the Volcano plot into a chart
 
 # first I find which rows have a padj value of less than or equal to 10e-4 
-keep = which(resLFC$padj <= 10e-4)
+keep = which(resLFC$padj <= 0.05)
 
 # then I only keep those rows
 res_padj_LFC = resLFC[keep,]

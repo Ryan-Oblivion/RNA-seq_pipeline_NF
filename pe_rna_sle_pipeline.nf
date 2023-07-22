@@ -69,8 +69,12 @@ fastp \
 -o $pair_id'_R1.filt.fq.gz' \
 -O $pair_id'_R2.filt.fq.gz' \
 --detect_adapter_for_pe \
---trim_front1 7 \
---trim_front2 7 \
+--correction
+
+# trying the correction option to correct mismatched base pairs in overlapped regions of paired end reads
+# no need for trimming anymore with modern aligners
+#--trim_front1 7 \
+#--trim_front2 7 \
 
 fastqc $pair_id'_R1.filt.fq.gz' $pair_id'_R2.filt.fq.gz'
 
@@ -148,6 +152,7 @@ val gtf
 
 output:
 //path "${pair_id}_sort.bam", emit: bam_file
+path "genome_generate_finished.txt", emit: genome_gen_finished
 
 """
 #!/bin/env bash
@@ -159,17 +164,20 @@ mkdir /scratch/rj931/tf_sle_project/ref_indices
 
 STAR --runThreadN 10 \
 --runMode genomeGenerate \
---genomeDir "/scratch/rj931/tf_sle_project/ref_indices" \
---genomeFastaFiles $ref 
-#--sjdbGTFfile $gtf \
-#--sjdbOverhang 43
+--genomeDir "../../../ref_indices" \
+--genomeFastaFiles $ref \
+--sjdbGTFfile $gtf \
+--sjdbOverhang 49 \
+--sjdbGTFfeatureExon exon 
+
+touch genome_generate_finished.txt
 
 """
 }
 
 process star_align {
 
-publishDir params.bams , mode: 'copy'
+publishDir params.bams , mode: 'copy', pattern: "${pair_id}*.bam"
 
 memory '45 GB'
 cpus 10
@@ -177,6 +185,8 @@ executor 'slurm'
 
 input: 
 tuple val(pair_id), path(filt_pe)
+
+path genome_finished
 
 output:
 path "${pair_id}*.bam", emit: star_bam_files
@@ -191,17 +201,38 @@ module load $STAR
 STAR --runMode alignReads \
 --outSAMtype BAM Unsorted \
 --readFilesCommand zcat \
---genomeDir "/scratch/rj931/tf_sle_project/ref_indices" \
+--genomeDir "../../../ref_indices" \
 --outFileNamePrefix "${pair_id}" \
 -- readFilesIn ${filt_pe[0]} ${filt_pe[1]} 
 
-cd ../../../store_bam_files
+#cd ../../../store_bam_files
 
-ls *bam > bam_list.txt
+#ls *bam > bam_list.txt
 
 """
 }
 
+
+
+process organize {
+
+input: 
+path bams
+
+output:
+path "place_holder.txt", emit: place_holder
+
+script:
+
+"""
+touch place_holder.txt
+
+cd ../../../store_bam_files
+
+ls *bam > bam_list.txt
+"""
+
+}
 
 /*process r_featurecounts {
 
@@ -245,7 +276,7 @@ write.table(fc\$counts, file = output_name, sep = "\t", quote = FALSE)
 process r_featurecounts {
 
 input:
-
+path place_holder 
 
 output:
 
@@ -361,6 +392,8 @@ workflow{
 ref = Channel.value(params.ref)
 gtf = Channel.value(params.gtf)
 
+
+
 //PE_reads = Channel.fromFilePairs(params.reads, checkIfExists: true)
 
 //PE_reads.view()
@@ -374,13 +407,22 @@ fastp(PE_reads)
 //bg_fastp(bg_reads)
 
 star(ref, gtf)
-star_align(filt_pe)
+
+
+
+star_align(filt_pe, star.out.genome_gen_finished)
+
+
+
+
+organize(star_align.out.star_bam_files.collect())
 
 //star_align.out.star_bam_files.view()
 
 //r_featurecounts(gtf, star_align.out.star_bam_files)
 
-r_featurecounts()
+
+r_featurecounts(organize.out.place_holder)
 
 // looking to see the output in r_featurecounts
 
