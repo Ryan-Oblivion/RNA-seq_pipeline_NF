@@ -15,7 +15,10 @@ library(ggplot2)
 #annotation_gtf_file = '../Homo_sapiens.GRCh38.109.chr.gtf.gz'
 
 # try this gtf file for the gene name
-annotation_gtf_file = '../gencode.v19.annotation.gtf.gz'
+#annotation_gtf_file = '../gencode.v19.annotation.gtf.gz'
+
+#Try this get file which was used in the genome generate step for star
+annotation_gtf_file = '../test_this.gtf'
 
 bam_files = readLines(paste("./store_bam_files", "/bam_list.txt", sep = ""))
 
