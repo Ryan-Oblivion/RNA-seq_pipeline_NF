@@ -131,12 +131,12 @@ ma_plot_reslfc
 
 
 # plotting plotma png 
-png(file = "ma_plot_reslfc.png", height = 500, width = 500)
+png(file = "ma_plot_reslfc.png", height = 1000, width = 1000)
 ma_plot_reslfc = plotMA(resLFC, ylim = c(-4,4))
 dev.off()
 
 # now plotting the res data without the lfc shrink
-png(file = "ma_plot_res.png", height = 500, width = 500)
+png(file = "ma_plot_res.png", height = 1000, width = 1000)
 ma_plot_res = plotMA(res, ylim = c(-4,4))
 dev.off()
 
@@ -150,7 +150,7 @@ dev.off()
 
 # we can look at the individual gene counts across replicates and conditions
 
-png(file = 'gene_counts_qa.png', height = 500, width = 500)
+png(file = 'gene_counts_qa.png', height = 1000, width = 1000)
 counts_select_gene = plotCounts(dds, gene=which.min(res$padj), intgroup="condition")
 dev.off()
 
@@ -168,16 +168,17 @@ show_replicates = ggplot(data_counts, aes(x = condition, y = count, color = repl
 geom_point()  +
 ggtitle(gene_name)
 
-png(file = 'counts_with_replicates.png', height = 500, width = 500)
+png(file = 'counts_with_replicates.png', height = 1000, width = 1000)
 show_replicates
 dev.off()
 
 # now to show a pca of the different conditions to find any batch effects
 
 rld <- rlog(dds, blind=FALSE)
-
-png( file = 'pca_analysis.png', height = 500, width = 500)
 pca_plot = plotPCA(rld, intgroup=c("condition"))
+
+png(file = 'pca_analysis.png', height = 1000, width = 1000)
+pca_plot 
 dev.off()
 
 
@@ -189,7 +190,7 @@ library(EnhancedVolcano)
 
 v_plot_padj = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
 =0.05, FCcutoff = 0.5)
-png(file = 'v_plot_padj.png', height = 500, width = 500)
+png(file = 'v_plot_padj.png', height = 1000, width = 1000)
 v_plot_padj
 dev.off()
 
@@ -198,7 +199,7 @@ dev.off()
 v_plot_pvalue = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'pvalue', pCutoff
 =0.05, FCcutoff = 0.5)
 
-png(file = 'v_plot_pvalue.png', height = 500, width = 500)
+png(file = 'v_plot_pvalue.png', height = 1000, width = 1000)
 v_plot_pvalue
 dev.off()
 
