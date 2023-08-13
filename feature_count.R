@@ -189,15 +189,33 @@ library(EnhancedVolcano)
 # also using y = pvalue because y = padj doesnt get any genes when a cutoff of 10e-5 is set. NOT ANYMORE
 
 v_plot_padj = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
-=0.05, FCcutoff = 0.5)
+=0.05, FCcutoff = 0.5, title = "Genes Down/Up Regulated", subtitle = "Adjusted P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "Padj-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "padj passed", expression(p - adj ~ and ~ log[2] ~ FC ~ passed)))
 png(file = 'v_plot_padj.png', height = 1000, width = 1000)
 v_plot_padj
+dev.off()
+
+
+# making a volcano plot with relaxed threshold of 0.1
+
+v_plot_padj_relaxed = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
+=0.1, FCcutoff = 0.5, title = "Genes Down/Up Regulated", subtitle = "Adjusted P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "Padj-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "padj passed", expression(p - adj ~ and ~ log[2] ~ FC ~ passed)))
+png(file = 'v_plot_relaxed_padj.png', height = 1000, width = 1000)
+v_plot_padj_relaxed
 dev.off()
 
 # lets make a v-plot with pvalue also
 
 v_plot_pvalue = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'pvalue', pCutoff
-=0.05, FCcutoff = 0.5)
+=0.05, FCcutoff = 0.5, title = "Genes Down/Up Regulated", subtitle = "P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "P-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "P-value passed", expression(p - value ~ and ~ log[2] ~ FC ~ passed)))
 
 png(file = 'v_plot_pvalue.png', height = 1000, width = 1000)
 v_plot_pvalue
@@ -207,6 +225,7 @@ dev.off()
 
 # first I find which rows have a padj value of less than or equal to 10e-4 
 keep = which(resLFC$padj <= 0.05)
+
 
 # then I only keep those rows
 res_padj_LFC = resLFC[keep,]
@@ -235,3 +254,15 @@ rownames(new_df) = NULL
 new_df
 write.table( new_df, file = 'de_genes_lfc_shrunk_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
 
+
+# next i want to just save the genes that pass a lower threshold of 0.1
+keep_relaxed = which(resLFC$padj <= 0.1)
+res_padj_relaxed = resLFC[keep_relaxed,]
+keep_relaxed_2 = which(res_padj_relaxed$log2FoldChange >= 0.5 | res_padj_relaxed$log2FoldChange <= -0.5 )
+res_padj_relaxed_final = res_padj_relaxed[keep_relaxed_2,]
+
+names_col = c('gene', 'baseMean', 'log2FoldChange', 'IfcSE', 'pvalue', 'padj')
+df_target_genes_relaxed = data.frame(res_padj_relaxed_final)
+new_df_relaxed = cbind( genes = rownames(df_target_genes_relaxed), df_target_genes_relaxed)
+rownames(new_df_relaxed) = NULL
+write.table( new_df_relaxed, file = 'de_genes_relaxed_lfc_shrunk_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
