@@ -98,6 +98,16 @@ dds = DESeq(dds)
 
 res = results(dds)
 
+# making box plots for the replicates to see if any are unfit
+
+par(mar=c(8,5,2,2))
+boxplot(log10(assays(dds)[["cooks"]]), range=0, las=2)
+
+
+
+png(file='box_plot_replicates.png', width=1000, height=1000)
+boxplot(log10(assays(dds)[["cooks"]]), range=0, las=2)
+dev.off()
 
 # below I use lfcShrink for log fold change shrinkage for visulization and ranking
 # helps with ranking of genes
