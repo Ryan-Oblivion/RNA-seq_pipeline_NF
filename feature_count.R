@@ -20,7 +20,7 @@ library(ggplot2)
 #Try this get file which was used in the genome generate step for star
 annotation_gtf_file = '../test_this.gtf'
 
-bam_files = readLines(paste("./store_bam_files", "/bam_list.txt", sep = ""))
+bam_files = readLines(paste("./store_bam_files/", "bam_list.txt", sep = ""))
 
 for (x in bam_files) {
 
@@ -48,6 +48,7 @@ library(tidyverse)
 files = list.files(path = ".", pattern = "*counts.txt")
 
 total_files = length(files)
+half_files = total_files / 2
 
 list_names = list()
 
@@ -82,10 +83,14 @@ colnames(combined_df) = list_names
 cts = as.matrix(combined_df)
 mode(cts) = "numeric"
 
-coldata = data.frame( condition = c("control", 
-"control","control", "control", "control", 
-"control","knockdown","knockdown","knockdown","knockdown","knockdown", "knockdown"), row.names = 
-list_names)
+coldata = data.frame( condition = c(rep("control", half_files), rep("knockdown", half_files)),
+row.names = list_names)
+
+#sample = c('c1','c1','c2','c2','c3','c3','kd1','kd1','kd2','kd2','kd3', 'kd3'),
+#run = c('c1a','c1a','c2b','c2b','c3a','c3a','kd1a','kd1a','kd2b','kd2b','kd3a', 'kd3a'),
+#row.names = list_names)
+
+# this lets deseq2 know which are biological replicates (sample) and which are technical replicates (run)
 
 coldata$condition = as.factor(coldata$condition)
 
@@ -95,6 +100,9 @@ library("DESeq2")
 dds = DESeqDataSetFromMatrix( countData = cts, colData = coldata, design = ~ condition)
 
 dds = DESeq(dds)
+
+# collapseing the technical replicates
+#dds <- collapseReplicates(dds, groupby = dds$sample, run = dds$run)
 
 res = results(dds)
 
@@ -208,6 +216,17 @@ v_plot_padj
 dev.off()
 
 
+# relaxing the padj log2fold change from 0.5 to 0.2
+
+v_plot_padj_fc_relaxed = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
+=0.05, FCcutoff = 0.2, title = "Genes Down/Up Regulated", subtitle = "Adjusted P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "Padj-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "padj passed", expression(p - adj ~ and ~ log[2] ~ FC ~ passed)))
+png(file = 'v_plot_padj_fc_relaxed.png', height = 1000, width = 1000)
+v_plot_padj
+dev.off()
+
 # making a volcano plot with relaxed threshold of 0.1
 
 v_plot_padj_relaxed = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
@@ -276,3 +295,17 @@ df_target_genes_relaxed = data.frame(res_padj_relaxed_final)
 new_df_relaxed = cbind( genes = rownames(df_target_genes_relaxed), df_target_genes_relaxed)
 rownames(new_df_relaxed) = NULL
 write.table( new_df_relaxed, file = 'de_genes_relaxed_lfc_shrunk_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
+
+
+
+# next i want to just save the genes that pass a lower threshold fold change of 0.2
+keep_norm = which(resLFC$padj <= 0.05)
+res_padj_norm = resLFC[keep_norm,]
+keep_fc_relaxed = which(res_padj_norm$log2FoldChange >= 0.2 | res_padj_norm$log2FoldChange <= -0.2 )
+res_padj_fc_relaxed = res_padj_norm[keep_fc_relaxed,]
+
+names_col = c('gene', 'baseMean', 'log2FoldChange', 'IfcSE', 'pvalue', 'padj')
+df_target_genes_fc_relaxed = data.frame(res_padj_fc_relaxed)
+new_df_fc_relaxed = cbind( genes = rownames(df_target_genes_fc_relaxed), df_target_genes_fc_relaxed)
+rownames(new_df_fc_relaxed) = NULL
+write.table( new_df_fc_relaxed, file = 'de_genes_fc_relaxed_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
