@@ -20,11 +20,11 @@ library(ggplot2)
 #Try this get file which was used in the genome generate step for star
 annotation_gtf_file = '../test_this.gtf'
 
-bam_files = readLines(paste("./store_bam_files/", "bam_list.txt", sep = ""))
+bam_files = readLines(paste("./store_bam_files/merged_bams/", "merged_bams.txt", sep = ""))
 
 for (x in bam_files) {
 
-file_name = paste0("./store_bam_files/", x)
+file_name = paste0("./store_bam_files/merged_bams/", x)
 output_name = paste0(x, "_counts.txt")
 
 fc = featureCounts( files = file_name,
@@ -85,7 +85,6 @@ mode(cts) = "numeric"
 
 coldata = data.frame( condition = c(rep("control", half_files), rep("knockdown", half_files)),
 row.names = list_names)
-
 #sample = c('c1','c1','c2','c2','c3','c3','kd1','kd1','kd2','kd2','kd3', 'kd3'),
 #run = c('c1a','c1a','c2b','c2b','c3a','c3a','kd1a','kd1a','kd2b','kd2b','kd3a', 'kd3a'),
 #row.names = list_names)

@@ -37,11 +37,9 @@ module load nextflow/23.04.1
 # replace the --filts parameter with the glob pattern for filt in the different condition
 # examples are seen above
 
-nextflow run -resume pe_rna_sle_pipeline.nf --reads "/scratch/rj931/tf_sle_project/all_sle_data/45*-IAV*polya*_{R1,R2}*.fastq.gz" \
---filts "filt_files/45*-IAV*polya*_{R1,R2}*.filt*"
+nextflow run -resume pe_rna_sle_pipeline.nf 
 
-nextflow run -resume pe_rna_sle_pipeline.nf --reads "/scratch/rj931/tf_sle_project/all_sle_data/45*-IAV*polya*_{R1,R2}*.fastq.gz" \
---filts "filt_files/45*-IAV*polya*_{R1,R2}*.filt*" 
+nextflow run -resume pe_rna_sle_pipeline.nf 
 
 
 
@@ -50,6 +48,13 @@ find . -name *fastqc.zip > fastqc_files.txt
 module load multiqc/1.9
 
 multiqc -force --file-list fastqc_files.txt --filename 'multiqc_report.html'
+
+
+# taking all the STAR output log files and placing them in a directory to see the mapping rate
+
+mkdir star_mapping_qc
+
+find /work/ -name '*Log.final.out' -exec mv {} ./star_mapping_qc \;
 
 #nextflow run -resume pe_sle_pipeline.nf
 

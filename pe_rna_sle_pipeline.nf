@@ -213,8 +213,7 @@ STAR --runMode alignReads \
 }
 
 
-
-process organize {
+/*process organize {
 
 input: 
 path bams
@@ -230,6 +229,80 @@ touch place_holder.txt
 cd ../../../store_bam_files
 
 ls *bam > bam_list.txt
+"""
+
+}*/
+
+
+
+process organize {
+publishDir  "${params.bams}/merged_bams" , mode: 'copy' , pattern: "${output_file_name}"
+
+input: 
+tuple val(key), path(bam_pairs)
+
+output:
+path "place_holder.txt", emit: place_holder
+path "${output_file_name}", emit: merged_bams
+
+script:
+
+output_file_name = "${key}.merged.bam"
+
+"""
+
+module load $SAMTOOLS
+
+samtools merge -o "${output_file_name}"  ${bam_pairs[0]} ${bam_pairs[1]}
+
+touch place_holder.txt
+
+#cd ../../../store_bam_files/merged_bams
+
+#ls *bam > bam_list.txt
+"""
+
+}
+
+
+
+/*process combined_bams_qc {
+
+
+    input:
+
+
+    output:
+
+
+    script:
+
+    """
+
+
+    """
+
+
+}*/
+
+
+process collected_bams {
+publishDir "${params.bams}/merged_bams", mode: 'copy' , pattern: "merged_bams.txt"
+
+input:
+
+val collected_bams_names
+
+output:
+
+path "merged_bams.txt" , emit: txt_merged_bams
+
+script:
+"""
+echo '${collected_bams_names.join("\n")}' > merged_bams.txt
+
+
+
 """
 
 }
@@ -276,7 +349,7 @@ write.table(fc\$counts, file = output_name, sep = "\t", quote = FALSE)
 process r_featurecounts {
 
 input:
-path place_holder 
+path place_holder
 
 output:
 
@@ -412,17 +485,45 @@ star(ref, gtf)
 
 star_align(filt_pe, star.out.genome_gen_finished)
 
+//organize(star_align.out.star_bam_files.collect())
+//r_featurecounts(organize.out.place_holder)
+
+star_align.out.star_bam_files
+.map{ file -> 
+def basename = file.baseName
+def key = basename.replaceAll(/_L00[12]*/, '')
+return tuple(key, file) 
+}
+.groupTuple()
+.set { bam_files_grouped }
+
+//bam_files_grouped.view()
+
+//star_align.out.star_bam_files.collect()
+
+organize( bam_files_grouped)
 
 
+organize.out.merged_bams
+.map{ file ->
+return file.name
+}
+.set { only_file_names }
 
-organize(star_align.out.star_bam_files.collect())
+only_file_names.view()
 
-//star_align.out.star_bam_files.view()
+collected_bams( only_file_names.collect())
+
+
+//combined_bams_qc(organize.out.merged_bams)
 
 //r_featurecounts(gtf, star_align.out.star_bam_files)
 
 
-r_featurecounts(organize.out.place_holder)
+r_featurecounts(collected_bams.out.txt_merged_bams)
+
+
+
 
 // looking to see the output in r_featurecounts
 
