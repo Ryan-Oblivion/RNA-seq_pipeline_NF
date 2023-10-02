@@ -2,13 +2,11 @@
 
 
 // run this to see how it looks again
-params.reads = 
-"/scratch/rj931/tf_sle_project/all_sle_data/45*-Mock*polya*_{R1,R2}*.fastq.gz"
+//params.reads = "store_fq_reads/45*-Mock*polya*_{R1,R2}*.fastq.gz"
 
 //do not need the background genomic regions for the rna pipeline
 
-//params.bg_regions = 
-"/scratch/rj931/tf_sle_project/all_sle_data/461-IgG*cut*_{R1,R2}*.fastq.gz"
+//params.bg_regions = "/scratch/rj931/tf_sle_project/all_sle_data/461-IgG*cut*_{R1,R2}*.fastq.gz"
 
 FASTP='fastp/intel/0.20.1'
 FASTQC='fastqc/0.11.9'
@@ -27,20 +25,66 @@ params.outdir = 'filt_files'
 
 params.bams = 'store_bam_files'
 
+params.store_fq_reads = 'store_fq_reads'
+
+
 // have to change this part when using the mock, iav, or bleo conditions
 
-params.filts = "filt_files/45*-Mock*polya*_{R1,R2}*.filt*"
+//params.filts = "filt_files/45*-Mock*polya*_{R1,R2}*.filt*"
 
+
+
+params.tech_reads_r1 = "/scratch/rj931/tf_sle_project/all_sle_data/45*-Mock*polya*_{L001,L002}*R1*.fastq.gz"
+params.tech_reads_r2 = "/scratch/rj931/tf_sle_project/all_sle_data/45*-Mock*polya*_{L001,L002}*R2*.fastq.gz"
 //Channel
 //	.watchPath('filt_files', 'create,modify')
 //	.filter { it.name ==~ params.filts}
 //	.until { it} 
 //	.set {filt_pe}
 
+//params.reads = "store_fq_reads/45*-Mock*polya*{R1,R2}*.fastq.gz"
+
+//params.filts = "filt_files/45*-Mock*polya*{R1,R2}*.filt*"
+
 nextflow.enable.dsl=2
 
 
-PE_reads = Channel.fromFilePairs(params.reads, checkIfExists: true)
+tech_rep_reads_r1 = Channel.fromFilePairs(params.tech_reads_r1, checkIfExists: true)
+tech_rep_reads_r2 = Channel.fromFilePairs(params.tech_reads_r2, checkIfExists: true)
+
+process cat_tech_reps {
+    
+    publishDir "${params.store_fq_reads}", mode: 'copy', pattern: '*fastq.gz'
+
+    input:
+
+    tuple val(r1_name), path(tech_rep_reads_r1)
+
+    tuple val(r2_name), path(tech_rep_reads_r2)
+
+    output:
+
+    path "*fastq.gz", emit: fastq_cat_reads
+
+    //path "${out_name_r1}", emit: fastq_r1_reads
+
+    //path "${out_name_r2}", emit: fastq_r2_reads
+
+    script:
+    out_name_r1 = "${r1_name}_R1.fastq.gz"
+    out_name_r2 = "${r2_name}_R2.fastq.gz"
+    """
+
+    cat ${tech_rep_reads_r1[0]} ${tech_rep_reads_r1[1]} > ${out_name_r1}
+
+    cat ${tech_rep_reads_r2[0]} ${tech_rep_reads_r2[1]} > ${out_name_r2}
+    """
+}
+
+
+
+
+//PE_reads = Channel.fromFilePairs(params.reads)
 
 process fastp {
 
@@ -48,14 +92,18 @@ process fastp {
 publishDir params.outdir, mode: 'copy'
 
 input:
-tuple val(pair_id), path(PE_reads)
+tuple val(pair_id), path(fastqs)
 // input in fastp would be ${reads[0]} and ${reads[1]}
 // something i can do in fastp is to now concatenate the $pair_id'_R1.filt.fastq.gz' 
 // same for output 2 in fastp use $pair_id'_R2.filt.fastq.gz'
 
+
 output:
-path "${pair_id}_R1.filt.fq.gz", emit: fastp_out_f
-path "${pair_id}_R2.filt.fq.gz", emit: fastp_out_r
+
+path "*filt.fq.gz", emit: filt_fq_files
+
+//path "${pair_id}_R1.filt.fq.gz", emit: fastp_out_f
+//path "${pair_id}_R2.filt.fq.gz", emit: fastp_out_r
 
 """
 #!/bin/env bash
@@ -64,8 +112,8 @@ module load $FASTP
 module load $FASTQC
 
 fastp \
--i ${PE_reads[0]} \
--I ${PE_reads[1]} \
+-i ${fastqs[0]} \
+-I ${fastqs[1]} \
 -o $pair_id'_R1.filt.fq.gz' \
 -O $pair_id'_R2.filt.fq.gz' \
 --detect_adapter_for_pe \
@@ -136,7 +184,7 @@ fastp \
 
 
 
-filt_pe = Channel.fromFilePairs(params.filts) 
+//filt_pe = Channel.fromFilePairs(params.filts) 
 params.outdir4 = "store_normal_bam_files"
 
 process star {
@@ -213,7 +261,6 @@ STAR --runMode alignReads \
 }
 
 
-
 process organize {
 
 input: 
@@ -233,6 +280,58 @@ ls *bam > bam_list.txt
 """
 
 }
+
+
+
+/*process organize {
+publishDir  "${params.bams}/merged_bams" , mode: 'copy' , pattern: "${output_file_name}"
+
+input: 
+tuple val(key), path(bam_pairs)
+
+output:
+path "place_holder.txt", emit: place_holder
+path "${output_file_name}", emit: merged_bams
+
+script:
+
+output_file_name = "${key}.merged.bam"
+
+"""
+
+module load $SAMTOOLS
+
+samtools merge -o "${output_file_name}"  ${bam_pairs[0]} ${bam_pairs[1]}
+
+touch place_holder.txt
+
+#cd ../../../store_bam_files/merged_bams
+
+#ls *bam > bam_list.txt
+"""
+
+}
+
+process collected_bams {
+publishDir "${params.bams}/merged_bams", mode: 'copy' , pattern: "merged_bams.txt"
+
+input:
+
+val collected_bams_names
+
+output:
+
+path "merged_bams.txt" , emit: txt_merged_bams
+
+script:
+"""
+echo '${collected_bams_names.join("\n")}' > merged_bams.txt
+
+
+
+"""
+
+}*/
 
 /*process r_featurecounts {
 
@@ -276,7 +375,7 @@ write.table(fc\$counts, file = output_name, sep = "\t", quote = FALSE)
 process r_featurecounts {
 
 input:
-path place_holder 
+path place_holder
 
 output:
 
@@ -403,26 +502,79 @@ gtf = Channel.value(params.gtf)
 //bam_tuple.view()
 main:
 
-fastp(PE_reads)
+cat_tech_reps(tech_rep_reads_r1, tech_rep_reads_r2)
+
+
+
+cat_tech_reps.out.fastq_cat_reads.flatten()
+.map{file -> 
+    def basename = file.baseName
+    def key = basename.replaceAll(/_R[12]*/, '')
+    return tuple(key,file)
+}
+.groupTuple()
+.set{ fastq_tuples}
+
+fastp(fastq_tuples)
+
+//fastp(PE_reads)
 //bg_fastp(bg_reads)
 
 star(ref, gtf)
 
 
 
-star_align(filt_pe, star.out.genome_gen_finished)
+fastp.out.filt_fq_files.flatten()
+.map{file ->
+    def basename = file.baseName
+    def key = basename.replaceAll(/_R[12]*/, '')
+    return tuple(key,file)
+}
+.groupTuple()
+.set { filt_files_tuple}
 
+star_align(filt_files_tuple, star.out.genome_gen_finished)
 
-
+//star_align(filt_pe, star.out.genome_gen_finished)
 
 organize(star_align.out.star_bam_files.collect())
+r_featurecounts(organize.out.place_holder)
 
-//star_align.out.star_bam_files.view()
+/*star_align.out.star_bam_files
+.map{ file -> 
+def basename = file.baseName
+def key = basename.replaceAll(/_L00[12]* /, '')
+return tuple(key, file) 
+}
+.groupTuple()
+.set { bam_files_grouped }
+
+//bam_files_grouped.view()
+
+//star_align.out.star_bam_files.collect()
+
+organize( bam_files_grouped)
+
+
+organize.out.merged_bams
+.map{ file ->
+return file.name
+}
+.set { only_file_names }
+
+only_file_names.view()
+
+collected_bams( only_file_names.collect())
+
+
 
 //r_featurecounts(gtf, star_align.out.star_bam_files)
 
 
-r_featurecounts(organize.out.place_holder)
+r_featurecounts(collected_bams.out.txt_merged_bams)
+
+*/
+
 
 // looking to see the output in r_featurecounts
 

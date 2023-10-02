@@ -35,13 +35,13 @@ module load nextflow/23.04.1
 
 # replace the --reads parameter with the glob pattern for reads in the different condition
 # replace the --filts parameter with the glob pattern for filt in the different condition
+# replace the --tech_reads_r1 with the glob pattern for your technical replicate paired reads (R1)
+# replace the --tech_reads_r2 with the glob pattern for your technical replicate paried reads (R2)
 # examples are seen above
 
-nextflow run -resume pe_rna_sle_pipeline.nf --reads "/scratch/rj931/tf_sle_project/all_sle_data/45*-IAV*polya*_{R1,R2}*.fastq.gz" \
---filts "filt_files/45*-IAV*polya*_{R1,R2}*.filt*"
+nextflow run -resume pe_rna_sle_pipeline.nf 
 
-nextflow run -resume pe_rna_sle_pipeline.nf --reads "/scratch/rj931/tf_sle_project/all_sle_data/45*-IAV*polya*_{R1,R2}*.fastq.gz" \
---filts "filt_files/45*-IAV*polya*_{R1,R2}*.filt*" 
+#nextflow run -resume pe_rna_sle_pipeline.nf 
 
 
 
