@@ -1,4 +1,8 @@
 # RNA-seq_pipeline_NF
+
+### The pipeline is in 'pe_rna_sle_pipeline.nf' file
+### The pipeline calls the R script to find the differentially expressed genes
+
 The files for running my RNA-seq nextflow pipeline
 
 The r_dev_test.def file is a singularity definition file that contains the instructions for building a singularity container image.
