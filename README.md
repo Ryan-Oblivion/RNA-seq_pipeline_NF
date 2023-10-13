@@ -35,3 +35,5 @@ rm work/de/111b213d38af9696476b48cc3cee04/
 ```
 This is the directory for me that contains that 'cashed' output, even though it is empty.
 Now you can run the pipeline again with the updated commands in the .R file.
+
+## With the new update in the pipeline file 'pe_rna_sle_pipeline.nf' I do not allow the process for running the R script to cache. This will avoid any problems mentioned above.
