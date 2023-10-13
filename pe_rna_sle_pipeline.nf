@@ -373,6 +373,7 @@ write.table(fc\$counts, file = output_name, sep = "\t", quote = FALSE)
 }*/
 
 process r_featurecounts {
+cache false
 
 input:
 path place_holder
