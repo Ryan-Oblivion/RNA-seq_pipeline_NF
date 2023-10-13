@@ -1,4 +1,10 @@
 # RNA-seq_pipeline_NF
+
+# This version of the pipeline will merge technical replicates, at the fastq level, if you have any. You must specify the glob patten to distinguish technical replicates.
+
+### The pipeline is in 'pe_rna_sle_pipeline.nf' file
+### The pipeline calls the R script to find the differentially expressed genes
+
 The files for running my RNA-seq nextflow pipeline
 
 The r_dev_test.def file is a singularity definition file that contains the instructions for building a singularity container image.
@@ -35,3 +41,5 @@ rm work/de/111b213d38af9696476b48cc3cee04/
 ```
 This is the directory for me that contains that 'cashed' output, even though it is empty.
 Now you can run the pipeline again with the updated commands in the .R file.
+
+## With the new update in the pipeline file 'pe_rna_sle_pipeline.nf' I do not allow the process for running the R script to cache. This will avoid any problems mentioned above.
