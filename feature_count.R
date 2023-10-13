@@ -189,6 +189,61 @@ png(file = 'counts_with_replicates.png', height = 1000, width = 1000)
 show_replicates
 dev.off()
 
+
+# just doing the above but in a for loop to get alot of gene counts
+
+# ordering the dataframe by ascending order 
+
+ordered_resLFC = resLFC[order(resLFC$padj),]
+#ordered_resLFC
+
+# getting only the adjusted p-values that are 0.05 or greater
+
+keep = which(ordered_resLFC$padj <= 0.05)
+
+res_LFC_FDR = ordered_resLFC[keep,]
+
+# now from the FDR list which genes pass the log2FoldChange threshold
+
+keep_FC = which( res_LFC_FDR$log2FoldChange <= -1 | res_LFC_FDR$log2FoldChange >= 1)
+
+res_LFC_FDR_FC = res_LFC_FDR[keep_FC, ]
+
+res_LFC_FDR_FC
+
+# getting only the top 20 genes with the lowest adjusted p-value and fold change threshold passed
+
+top_20_padj_fc = head(res_LFC_FDR_FC, 20)
+
+
+# now i want to take all the gene names and put it in a list to loop through it and create a gene count
+# table for each
+
+#library(os)
+
+top_20_genes = row.names(top_20_padj_fc)
+
+
+length(top_20_genes)
+
+
+dir.create('gene_counts_with_reps')
+
+for (x in c(1:length(top_20_genes))){
+    data_counts = plotCounts(dds, gene=top_20_genes[x], intgroup="condition", returnData = TRUE)
+    data_counts$replicates = rownames(data_counts)
+    file_name = paste0(top_20_genes[x], '_counts_with_reps.png')
+    file_path = paste0('gene_counts_with_reps/', file_name)
+    png(file = file_path, width = 1000, height = 1000)
+    print(ggplot(data_counts, aes( x = condition, y = count, color = replicates)) + 
+    geom_point() +
+    ggtitle(top_20_genes[x]))
+    dev.off()
+}
+
+
+
+
 # now to show a pca of the different conditions to find any batch effects
 
 rld <- rlog(dds, blind=FALSE)
