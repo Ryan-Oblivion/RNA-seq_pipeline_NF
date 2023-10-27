@@ -197,7 +197,7 @@ dev.off()
 ordered_resLFC = resLFC[order(resLFC$padj),]
 #ordered_resLFC
 
-# getting only the adjusted p-values that are 0.05 or greater
+# getting only the adjusted p-values that are 0.05 or less
 
 keep = which(ordered_resLFC$padj <= 0.05)
 
@@ -241,6 +241,54 @@ for (x in c(1:length(top_20_genes))){
     dev.off()
 }
 
+
+# this is similar to above but now I am getting the genes that did not pass the padj threshold and plotting their counts
+
+# ordering the dataframe by ascending order 
+
+ordered_resLFC = resLFC[order(resLFC$padj),]
+#ordered_resLFC
+
+# getting only the adjusted p-values that are 0.05 or greater. meaning they did not pass the padj
+
+keep = which(ordered_resLFC$padj >= 0.05)
+
+res_LFC_FDR_fail = ordered_resLFC[keep,]
+
+
+# getting only the top 20 genes that did not pass the adjusted p-value.
+
+top_50_padj = head(res_LFC_FDR_fail, 50)
+
+
+# now i want to take all the gene names and put it in a list to loop through it and create a gene count
+# table for each
+
+#library(os)
+
+top_50_genes = row.names(top_50_padj)
+
+
+length(top_50_genes)
+
+#plotCounts(dds, gene=top_20_genes[1], intgroup="condition", returnData = TRUE)
+#ggplot(data_counts, aes( x = condition, y = count, color = replicates)) + 
+#geom_point() +
+#ggtitle(top_20_genes[1])
+
+dir.create('gene_counts_failed_fdr')
+
+for (x in c(1:length(top_50_genes))){
+    data_counts = plotCounts(dds, gene=top_50_genes[x], intgroup="condition", returnData = TRUE)
+    data_counts$replicates = rownames(data_counts)
+    file_name = paste0(top_50_genes[x], '_counts_with_reps_failed.png')
+    file_path = paste0('gene_counts_failed_fdr/', file_name)
+    png(file = file_path, width = 1000, height = 1000)
+    print(ggplot(data_counts, aes( x = condition, y = count, color = replicates)) + 
+    geom_point() +
+    ggtitle(top_50_genes[x]))
+    dev.off()
+    }
 
 
 
