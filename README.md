@@ -13,7 +13,7 @@ First we may have to login to singularity
 ```
 singularity remote login
 ```
-You will need to go to the singularity website, create an account and login then generate an access key in the top right. Then copy and paste that access key into the terminal as a way to remote login.
+You will need to go to the singularity website, https://sylabs.io/singularity/, create an account and login then generate an access key in the top right. Then copy and paste that access key into the terminal as a way to remote login.
 
 Next we can build finally
 ```
