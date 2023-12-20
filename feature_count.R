@@ -36,7 +36,6 @@ isPairedEnd = TRUE,
 countReadPairs = TRUE
 ) 
 
-
 write.table(fc$counts, file = output_name, sep = "\t", quote = FALSE)
 
 }
@@ -48,6 +47,7 @@ library(tidyverse)
 files = list.files(path = ".", pattern = "*counts.txt")
 
 total_files = length(files)
+half_files = total_files / 2
 
 list_names = list()
 
@@ -82,10 +82,13 @@ colnames(combined_df) = list_names
 cts = as.matrix(combined_df)
 mode(cts) = "numeric"
 
-coldata = data.frame( condition = c("control", 
-"control","control", "control", "control", 
-"control","knockdown","knockdown","knockdown","knockdown","knockdown", "knockdown"), row.names = 
-list_names)
+coldata = data.frame( condition = c(rep("control", half_files), rep("knockdown", half_files)),
+row.names = list_names)
+#sample = c('c1','c1','c2','c2','c3','c3','kd1','kd1','kd2','kd2','kd3', 'kd3'),
+#run = c('c1a','c1a','c2b','c2b','c3a','c3a','kd1a','kd1a','kd2b','kd2b','kd3a', 'kd3a'),
+#row.names = list_names)
+
+# this lets deseq2 know which are biological replicates (sample) and which are technical replicates (run)
 
 coldata$condition = as.factor(coldata$condition)
 
@@ -96,8 +99,21 @@ dds = DESeqDataSetFromMatrix( countData = cts, colData = coldata, design = ~ con
 
 dds = DESeq(dds)
 
+# collapseing the technical replicates
+#dds <- collapseReplicates(dds, groupby = dds$sample, run = dds$run)
+
 res = results(dds)
 
+# making box plots for the replicates to see if any are unfit
+
+par(mar=c(8,5,2,2))
+boxplot(log10(assays(dds)[["cooks"]]), range=0, las=2)
+
+
+
+png(file='box_plot_replicates.png', width=1000, height=1000)
+boxplot(log10(assays(dds)[["cooks"]]), range=0, las=2)
+dev.off()
 
 # below I use lfcShrink for log fold change shrinkage for visulization and ranking
 # helps with ranking of genes
@@ -172,6 +188,109 @@ png(file = 'counts_with_replicates.png', height = 1000, width = 1000)
 show_replicates
 dev.off()
 
+
+# just doing the above but in a for loop to get alot of gene counts
+
+# ordering the dataframe by ascending order 
+
+ordered_resLFC = resLFC[order(resLFC$padj),]
+#ordered_resLFC
+
+# getting only the adjusted p-values that are 0.05 or less
+
+keep = which(ordered_resLFC$padj <= 0.05)
+
+res_LFC_FDR = ordered_resLFC[keep,]
+
+# now from the FDR list which genes pass the log2FoldChange threshold
+
+keep_FC = which( res_LFC_FDR$log2FoldChange <= -1 | res_LFC_FDR$log2FoldChange >= 1)
+
+res_LFC_FDR_FC = res_LFC_FDR[keep_FC, ]
+
+res_LFC_FDR_FC
+
+# getting only the top 20 genes with the lowest adjusted p-value and fold change threshold passed
+
+top_20_padj_fc = head(res_LFC_FDR_FC, 20)
+
+
+# now i want to take all the gene names and put it in a list to loop through it and create a gene count
+# table for each
+
+#library(os)
+
+top_20_genes = row.names(top_20_padj_fc)
+
+
+length(top_20_genes)
+
+
+dir.create('gene_counts_with_reps')
+
+for (x in c(1:length(top_20_genes))){
+    data_counts = plotCounts(dds, gene=top_20_genes[x], intgroup="condition", returnData = TRUE)
+    data_counts$replicates = rownames(data_counts)
+    file_name = paste0(top_20_genes[x], '_counts_with_reps.png')
+    file_path = paste0('gene_counts_with_reps/', file_name)
+    png(file = file_path, width = 1000, height = 1000)
+    print(ggplot(data_counts, aes( x = condition, y = count, color = replicates)) + 
+    geom_point() +
+    ggtitle(top_20_genes[x]))
+    dev.off()
+}
+
+
+# this is similar to above but now I am getting the genes that did not pass the padj threshold and plotting their counts
+
+# ordering the dataframe by ascending order 
+
+ordered_resLFC = resLFC[order(resLFC$padj),]
+#ordered_resLFC
+
+# getting only the adjusted p-values that are 0.05 or greater. meaning they did not pass the padj
+
+keep = which(ordered_resLFC$padj >= 0.05)
+
+res_LFC_FDR_fail = ordered_resLFC[keep,]
+
+
+# getting only the top 20 genes that did not pass the adjusted p-value.
+
+top_50_padj = head(res_LFC_FDR_fail, 50)
+
+
+# now i want to take all the gene names and put it in a list to loop through it and create a gene count
+# table for each
+
+#library(os)
+
+top_50_genes = row.names(top_50_padj)
+
+
+length(top_50_genes)
+
+#plotCounts(dds, gene=top_20_genes[1], intgroup="condition", returnData = TRUE)
+#ggplot(data_counts, aes( x = condition, y = count, color = replicates)) + 
+#geom_point() +
+#ggtitle(top_20_genes[1])
+
+dir.create('gene_counts_failed_fdr')
+
+for (x in c(1:length(top_50_genes))){
+    data_counts = plotCounts(dds, gene=top_50_genes[x], intgroup="condition", returnData = TRUE)
+    data_counts$replicates = rownames(data_counts)
+    file_name = paste0(top_50_genes[x], '_counts_with_reps_failed.png')
+    file_path = paste0('gene_counts_failed_fdr/', file_name)
+    png(file = file_path, width = 1000, height = 1000)
+    print(ggplot(data_counts, aes( x = condition, y = count, color = replicates)) + 
+    geom_point() +
+    ggtitle(top_50_genes[x]))
+    dev.off()
+    }
+
+
+
 # now to show a pca of the different conditions to find any batch effects
 
 rld <- rlog(dds, blind=FALSE)
@@ -189,15 +308,44 @@ library(EnhancedVolcano)
 # also using y = pvalue because y = padj doesnt get any genes when a cutoff of 10e-5 is set. NOT ANYMORE
 
 v_plot_padj = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
-=0.05, FCcutoff = 0.5)
+=0.05, FCcutoff = 0.5, title = "Genes Down/Up Regulated", subtitle = "Adjusted P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "Padj-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "padj passed", expression(p - adj ~ and ~ log[2] ~ FC ~ passed)))
 png(file = 'v_plot_padj.png', height = 1000, width = 1000)
 v_plot_padj
+dev.off()
+
+
+# relaxing the padj log2fold change from 0.5 to 0.2
+
+v_plot_padj_fc_relaxed = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
+=0.05, FCcutoff = 0.2, title = "Genes Down/Up Regulated", subtitle = "Adjusted P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "Padj-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "padj passed", expression(p - adj ~ and ~ log[2] ~ FC ~ passed)))
+png(file = 'v_plot_padj_fc_relaxed.png', height = 1000, width = 1000)
+v_plot_padj
+dev.off()
+
+# making a volcano plot with relaxed threshold of 0.1
+
+v_plot_padj_relaxed = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'padj', pCutoff 
+=0.1, FCcutoff = 0.5, title = "Genes Down/Up Regulated", subtitle = "Adjusted P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "Padj-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "padj passed", expression(p - adj ~ and ~ log[2] ~ FC ~ passed)))
+png(file = 'v_plot_relaxed_padj.png', height = 1000, width = 1000)
+v_plot_padj_relaxed
 dev.off()
 
 # lets make a v-plot with pvalue also
 
 v_plot_pvalue = EnhancedVolcano(resLFC, lab = rownames(resLFC), x = 'log2FoldChange', y = 'pvalue', pCutoff
-=0.05, FCcutoff = 0.5)
+=0.05, FCcutoff = 0.5, title = "Genes Down/Up Regulated", subtitle = "P-value vs shrunken LFC",
+xlab = bquote(~Log[2] ~ "fold change"),
+ylab = bquote(~Log[10] ~ "P-value"),
+legendLabels = c("Not Signigicant", expression(Log[2] ~ FC), "P-value passed", expression(p - value ~ and ~ log[2] ~ FC ~ passed)))
 
 png(file = 'v_plot_pvalue.png', height = 1000, width = 1000)
 v_plot_pvalue
@@ -207,6 +355,7 @@ dev.off()
 
 # first I find which rows have a padj value of less than or equal to 10e-4 
 keep = which(resLFC$padj <= 0.05)
+
 
 # then I only keep those rows
 res_padj_LFC = resLFC[keep,]
@@ -235,3 +384,29 @@ rownames(new_df) = NULL
 new_df
 write.table( new_df, file = 'de_genes_lfc_shrunk_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
 
+
+# next i want to just save the genes that pass a lower threshold of 0.1
+keep_relaxed = which(resLFC$padj <= 0.1)
+res_padj_relaxed = resLFC[keep_relaxed,]
+keep_relaxed_2 = which(res_padj_relaxed$log2FoldChange >= 0.5 | res_padj_relaxed$log2FoldChange <= -0.5 )
+res_padj_relaxed_final = res_padj_relaxed[keep_relaxed_2,]
+
+names_col = c('gene', 'baseMean', 'log2FoldChange', 'IfcSE', 'pvalue', 'padj')
+df_target_genes_relaxed = data.frame(res_padj_relaxed_final)
+new_df_relaxed = cbind( genes = rownames(df_target_genes_relaxed), df_target_genes_relaxed)
+rownames(new_df_relaxed) = NULL
+write.table( new_df_relaxed, file = 'de_genes_relaxed_lfc_shrunk_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
+
+
+
+# next i want to just save the genes that pass a lower threshold fold change of 0.2
+keep_norm = which(resLFC$padj <= 0.05)
+res_padj_norm = resLFC[keep_norm,]
+keep_fc_relaxed = which(res_padj_norm$log2FoldChange >= 0.2 | res_padj_norm$log2FoldChange <= -0.2 )
+res_padj_fc_relaxed = res_padj_norm[keep_fc_relaxed,]
+
+names_col = c('gene', 'baseMean', 'log2FoldChange', 'IfcSE', 'pvalue', 'padj')
+df_target_genes_fc_relaxed = data.frame(res_padj_fc_relaxed)
+new_df_fc_relaxed = cbind( genes = rownames(df_target_genes_fc_relaxed), df_target_genes_fc_relaxed)
+rownames(new_df_fc_relaxed) = NULL
+write.table( new_df_fc_relaxed, file = 'de_genes_fc_relaxed_padj.tsv', sep = '\t', quote = FALSE, row.names = FALSE)
